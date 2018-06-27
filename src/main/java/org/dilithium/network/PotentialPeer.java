@@ -68,6 +68,5 @@ public class PotentialPeer extends Peer {
         } catch (Exception e) {
 
         }
-
     }
 }
