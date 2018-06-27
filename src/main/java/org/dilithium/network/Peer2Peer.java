@@ -3,14 +3,11 @@ package org.dilithium.network;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.network.commands.NetworkCommand;
 import org.dilithium.network.commands.TextCommand;
-import org.dilithium.network.messages.uMessage;
 import org.dilithium.network.peerSet.PeerSet;
 
 import java.net.*;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Queue;
 
 public class Peer2Peer extends Thread {
     private int port;
@@ -47,7 +44,7 @@ public class Peer2Peer extends Thread {
         try {
             Socket sock = new Socket();
             System.out.println("Socket created");
-            sock.connect(new InetSocketAddress(s, port), 1000);
+            sock.connect(new InetSocketAddress(s, port), 3000);
             System.out.println("Socket connected");
 
             PotentialPeer p = new PotentialPeer(sock);
@@ -61,7 +58,7 @@ public class Peer2Peer extends Thread {
             p.send(1, key.getAddress());
             System.out.println("Connection Message Sent");
         } catch (Exception e) {
-            System.out.println("Connection timed out.");
+            System.out.println("Connection failed.");
         }
     }
 

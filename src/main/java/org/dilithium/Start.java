@@ -1,15 +1,9 @@
 package org.dilithium;
 
-import org.bouncycastle.util.encoders.Hex;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.network.Peer2Peer;
 
-import java.util.ArrayList;
-import java.util.Map;
 import java.util.Scanner;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static org.dilithium.crypto.Hash.keccak256;
 
 public class Start {
     public static void main(String[] args)  {
@@ -22,6 +16,11 @@ public class Start {
 
             boolean running = true;
 
+            System.out.println("System initialized.");
+            System.out.println("To send a message, enter '1'.\n" +
+                    "To connect to a peer, enter '2'. \n" +
+                    "To list currently connected peers, enter '3'.\n" +
+                    "To exit the program, enter '4'.");
             while (running) {
                 int choice = s.nextInt();
                 if(choice == 1) {
@@ -34,13 +33,16 @@ public class Start {
                     int port = s.nextInt();
 
                     net.connect(ip, port);
-
-                    System.out.println("Attempting connection.");
                 } else if(choice == 3) {
                     System.out.println("Current Peers: ");
                     System.out.println(net.getPeers());
+                } else if(choice == 4) {
+                    System.out.println("Shutting down.");
+                    running = false;
                 }
             }
+
+            System.exit(666);
         } catch (Exception e) {
             System.out.println("Failed.");
         }

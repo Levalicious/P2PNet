@@ -1,13 +1,19 @@
 package org.dilithium.network;
 
+import com.google.common.primitives.UnsignedInteger;
 import org.bouncycastle.util.encoders.Hex;
 import org.dilithium.network.messages.uMessage;
+import org.dilithium.util.BIUtil;
+import org.dilithium.util.ByteUtil;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Arrays;
+
+import static org.dilithium.util.ByteUtil.concat;
 
 public class Peer extends Thread {
     private byte[] address;
@@ -65,7 +71,25 @@ public class Peer extends Thread {
 
     public uMessage receive(DataInputStream in) {
         try {
-            return new uMessage(in.readAllBytes());
+            byte[] lengthBytes = new byte[4];
+
+            int count = in.read(lengthBytes);
+
+            if(count != 4) {
+                throw new RuntimeException("Reading in sucks");
+            } else {
+                UnsignedInteger length = UnsignedInteger.valueOf(Hex.toHexString(ByteUtil.stripLeadingZeroes(lengthBytes)), 16);
+
+                byte[] data = new byte[length.intValue()];
+
+                count = in.read(data);
+
+                if(count != data.length) {
+                    throw new RuntimeException("Reading in sucks");
+                } else {
+                    return new uMessage(data);
+                }
+            }
         } catch (Exception e) {
             return null;
         }
@@ -77,6 +101,27 @@ public class Peer extends Thread {
                 uMessage u = new uMessage(i, data, Peer2Peer.key.getPrivKeyBytes());
 
                 byte[] toSend = u.getEncoded();
+
+                if(toSend.length > Integer.MAX_VALUE || toSend.length < 0) {
+                    System.out.println("Packet size is drunk.");
+                    throw new RuntimeException("Fuck.");
+                }
+
+                UnsignedInteger length = UnsignedInteger.valueOf(toSend.length);
+
+                byte[] lengthBits = Hex.decode(length.toString(16));
+
+                if (lengthBits.length > 4) {
+                    System.out.println("Packet size is outside of safely drunk parameters.");
+                    throw new RuntimeException("Fuck.");
+                } else {
+                    while (lengthBits.length < 4) {
+                        lengthBits = concat(ByteUtil.ZERO_BYTE, lengthBits);
+                    }
+                }
+
+                toSend = concat(lengthBits, toSend);
+
                 out.write(toSend.length);
                 out.write(toSend);
                 out.flush();
