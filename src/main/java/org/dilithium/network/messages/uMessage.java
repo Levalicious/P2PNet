@@ -3,10 +3,13 @@ package org.dilithium.network.messages;
 import org.bouncycastle.util.BigIntegers;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.util.ByteUtil;
+import org.dilithium.util.Hex;
 import org.dilithium.util.serialization.RLP;
 import org.dilithium.util.serialization.RLPElement;
 import org.dilithium.util.serialization.RLPItem;
 import org.dilithium.util.serialization.RLPList;
+
+import java.math.BigInteger;
 
 import static com.cedarsoftware.util.ArrayUtilities.isEmpty;
 import static org.dilithium.crypto.Hash.keccak256;
@@ -14,9 +17,9 @@ import static org.dilithium.util.ByteUtil.EMPTY_BYTE_ARRAY;
 import static org.dilithium.util.ByteUtil.concat;
 
 public class uMessage {
-    /* Is prepended to rlp encoding to show
-     * this message is untargetted */
-    private final byte[] UNTARGETTED_IDENTIFIER = {(byte)0x00};
+    private static final int CHAIN_ID_INC = 35;
+    private static final int LOWER_REAL_V = 27;
+    private Integer chainId = 40;
 
     /* The RLP encoding for this packet */
     private byte[] rlpEncoded;
@@ -87,7 +90,9 @@ public class uMessage {
             this.payload = packet.get(1).getRLPData();
             this.r = packet.get(2).getRLPData();
             this.s = packet.get(3).getRLPData();
-            this.v = (byte)ByteUtil.byteArrayToInt(packet.get(4).getRLPData());
+            byte[] vData = packet.get(4).getRLPData();
+            BigInteger v = ByteUtil.bytesToBigInteger(vData);
+            this.v = getRealV(v);
             this.parsed = true;
             this.hash = getHash();
         } catch (Exception e) {
@@ -96,6 +101,7 @@ public class uMessage {
     }
 
     public int getMessageType() {
+        rlpParse();
         return messageType;
     }
 
@@ -105,6 +111,7 @@ public class uMessage {
     }
 
     public ECKey.ECDSASignature getSig() {
+        rlpParse();
         return ECKey.ECDSASignature.fromComponents(r,s,v);
     }
 
@@ -120,11 +127,14 @@ public class uMessage {
     }
 
     public byte[] getSender() {
+        rlpParse();
         ECKey.ECDSASignature temp = ECKey.ECDSASignature.fromComponents(r, s, v);
 
         try {
             return ECKey.signatureToAddress(this.getRawHash(), temp);
         } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Sig recovery failed");
             return null;
         }
     }
@@ -150,7 +160,7 @@ public class uMessage {
         byte[] payload = RLP.encodeElement(this.payload);
         byte[] r = RLP.encodeElement(EMPTY_BYTE_ARRAY);
         byte[] s = RLP.encodeElement(EMPTY_BYTE_ARRAY);
-        byte[] v = RLP.encodeByte((byte)0x50);
+        byte[] v = RLP.encodeInt(chainId);
 
         rlpRaw = RLP.encodeList(messageType, payload, r, s, v);
 
@@ -164,12 +174,24 @@ public class uMessage {
         byte[] payload = RLP.encodeElement(this.payload);
         byte[] r = RLP.encodeElement(this.r);
         byte[] s = RLP.encodeElement(this.s);
-        byte[] v = RLP.encodeByte(this.v);
+        int encodeV = this.v - LOWER_REAL_V;
+        encodeV += chainId * 2 + CHAIN_ID_INC;
+        byte[] v = RLP.encodeInt(encodeV);
 
         this.rlpEncoded = RLP.encodeList(messageType, payload, r, s, v);
 
         this.hash = this.getHash();
 
         return rlpEncoded;
+    }
+
+    private byte getRealV(BigInteger bv) {
+        if (bv.bitLength() > 31) return 0; // chainId is limited to 31 bits, longer are not valid for now
+        long v = bv.longValue();
+        if (v == LOWER_REAL_V || v == (LOWER_REAL_V + 1)) return (byte) v;
+        byte realV = LOWER_REAL_V;
+        int inc = 0;
+        if ((int) v % 2 == 0) inc = 1;
+        return (byte) (realV + inc);
     }
 }

@@ -6,22 +6,24 @@ import org.dilithium.network.commands.TextCommand;
 import org.dilithium.network.peerSet.PeerSet;
 
 import java.net.*;
-import java.util.ArrayList;
+import java.util.Vector;
 import java.util.HashMap;
+
+import static org.dilithium.util.ByteUtil.ZERO_BYTE;
 
 public class Peer2Peer extends Thread {
     private int port;
     private boolean running;
     private boolean initialized;
 
-    private ServerSocket server;
-    private PeerSet peers;
+    private static ServerSocket server;
+    public static PeerSet peers;
 
     protected static ECKey key;
 
     protected static HashMap<Integer, NetworkCommand> commands = new HashMap<>();
 
-    public static ArrayList<PotentialPeer> waitList = new ArrayList<>();
+    public static Vector<Peer> waitList = new Vector<>();
 
 
     public Peer2Peer(int port, ECKey key, int k) {
@@ -47,23 +49,20 @@ public class Peer2Peer extends Thread {
             sock.connect(new InetSocketAddress(s, port), 3000);
             System.out.println("Socket connected");
 
-            PotentialPeer p = new PotentialPeer(sock);
-            System.out.println("PotentialPeer initialized");
+            Peer p = new Peer(sock);
+            System.out.println("Peer initialized");
             p.start();
-            System.out.println("PotentialPeer Started");
+            System.out.println("Peer Started");
 
             this.waitList.add(p);
-            System.out.println("PotentialPeer Added to Waitlist");
-
-            p.send(1, key.getAddress());
-            System.out.println("Connection Message Sent");
+            System.out.println("Peer Added to Waitlist");
         } catch (Exception e) {
             System.out.println("Connection failed.");
         }
     }
 
     private void initializeCommands() {
-        commands.put(1, new TextCommand());
+        commands.put(0xF0, new TextCommand());
     }
 
     public void broadcast(int n, byte[] in) {
@@ -80,22 +79,17 @@ public class Peer2Peer extends Thread {
                 Socket s = server.accept();
 
                 if (s != null) {
-                    PotentialPeer p = new PotentialPeer(s);
+                    Peer p = new Peer(s);
 
                     p.start();
 
                     waitList.add(p);
 
-                    p.send(1, key.getAddress());
+                    p.send(2, ZERO_BYTE);
 
                     for (int i = 0; i < waitList.size(); i++) {
                         if (waitList.get(i).toDelete()) {
-                            waitList.remove(i).stop();
-                        } else if (waitList.get(i).hasAddress()) {
-                            PotentialPeer pot = waitList.remove(i);
-                            Peer newPeer = new Peer(pot.getAddress(), pot.getSocket());
-                            newPeer.start();
-                            peers.add(newPeer);
+                            waitList.remove(i).interrupt();
                         }
                     }
                 }

@@ -43,6 +43,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
 import static org.dilithium.crypto.Hash.keccak256;
+import static org.dilithium.crypto.Hash.keccak256Omit12;
 import static org.dilithium.resources.Constants.MagicBytesOne;
 import static org.dilithium.resources.Constants.MagicBytesTwo;
 import static org.dilithium.util.BIUtil.isLessThan;
@@ -377,7 +378,7 @@ public class ECKey implements Serializable {
      * @return 20-byte address
      */
     public static byte[] computeAddress(byte[] pubBytes) {
-        return keccak256(concat(MagicBytesTwo, keccak256(concat(MagicBytesOne, pubBytes))));
+        return keccak256Omit12(pubBytes);
     }
 
     /**
@@ -559,7 +560,7 @@ public class ECKey implements Serializable {
 
         public static boolean validateComponents(BigInteger r, BigInteger s, byte v) {
 
-            if (v != 42 && v != 43) return false;
+            if (v != 27 && v != 28) return false;
 
             if (isLessThan(r, BigInteger.ONE)) return false;
             if (isLessThan(s, BigInteger.ONE)) return false;
@@ -630,8 +631,8 @@ public class ECKey implements Serializable {
         }
 
         public byte[] toByteArray() {
-            final byte fixedV = this.v >= 42
-                    ? (byte) (this.v - 42)
+            final byte fixedV = this.v >= 27
+                    ? (byte) (this.v - 27)
                     :this.v;
 
             return ByteUtil.merge(
@@ -720,7 +721,7 @@ public class ECKey implements Serializable {
         }
         if (recId == -1)
             throw new RuntimeException("Could not construct a recoverable key. This should never happen.");
-        sig.v = (byte) (recId + 42);
+        sig.v = (byte) (recId + 27);
         return sig;
     }
 
@@ -761,12 +762,12 @@ public class ECKey implements Serializable {
         int header = sig.v;
         // The header byte: 0x1B = first key with even y, 0x1C = first key with odd y,
         //                  0x1D = second key with even y, 0x1E = second key with odd y
-        if (header < 42 || header > 49)
+        if (header < 27 || header > 34)
             throw new SignatureException("Header byte out of range: " + header);
         if (header >= 31) {
             header -= 4;
         }
-        int recId = header - 42;
+        int recId = header - 27;
         byte[] key = ECKey.recoverPubBytesFromSignature(recId, sig, messageHash);
         if (key == null)
             throw new SignatureException("Could not recover public key from signature");

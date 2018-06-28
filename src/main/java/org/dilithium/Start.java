@@ -14,20 +14,11 @@ import org.dilithium.util.ByteUtil;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class Start {
     public static void main(String[] args) throws Exception {
-        byte[] toSend = new byte[1000];
-        UnsignedInteger length = UnsignedInteger.valueOf(toSend.length);
-
-        System.out.println(length.toString(16));
-        byte[] lengthBits = ByteUtils.fromHexString(length.toString(16));
-
-        System.out.println(length.intValue());
-        UnsignedInteger lengtht = UnsignedInteger.valueOf(Hex.toHexString(ByteUtil.stripLeadingZeroes(lengthBits)), 16);
-        System.out.println(lengtht.intValue());
-
         try {
             ECKey key = new ECKey();
             System.out.println(Hex.toHexString(key.getAddress()));
@@ -42,14 +33,16 @@ public class Start {
             System.out.println("To send a message, enter '1'.\n" +
                     "To connect to a peer, enter '2'. \n" +
                     "To list currently connected peers, enter '3'.\n" +
-                    "To exit the program, enter '4'.");
+                    "To check how many peers are in the waitlist, enter '4'.\n" +
+                    "To exit the program, enter '5'.");
+
             while (running) {
                 int choice = s.nextInt();
                 s.nextLine();
                 if(choice == 1) {
                     System.out.print("Enter the message you'd like to send: ");
                     String sending = s.nextLine();
-                    net.broadcast(1, sending.getBytes("UTF-8"));
+                    net.broadcast(0xF0, sending.getBytes("UTF-8"));
                 } else if(choice == 2) {
                     System.out.print("Enter IP: ");
                     String ip = s.next();

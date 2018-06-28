@@ -9,6 +9,7 @@ import org.bouncycastle.jcajce.provider.digest.Skein;
 
 import java.security.MessageDigest;
 
+import static java.util.Arrays.copyOfRange;
 import static org.dilithium.util.ByteUtil.concat;
 
 public class Hash {
@@ -22,6 +23,11 @@ public class Hash {
     public static byte[] keccak512(byte[] in) {
         md = new Keccak512();
         return md.digest(in);
+    }
+
+    public static byte[] keccak256Omit12(byte[] in) {
+        byte[] hash = keccak256(in);
+        return copyOfRange(hash, 12, hash.length);
     }
 
     public static byte[] skein256(byte[] in) {
@@ -51,6 +57,7 @@ public class Hash {
     public static byte[] groestl512(byte[] in) {
         return new Groestl512().digest(in);
     }
+
 
     public static byte[] longHash(byte[] in) {
         return concat(keccak256(in), skein256(in), blake256(in), groestl256(in));

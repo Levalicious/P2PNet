@@ -43,6 +43,16 @@ public class Bucket {
         }
     }
 
+    public boolean contains(Peer p) {
+        for (int i = 0; i < k; i++) {
+            if (peers[i] == p) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public boolean remove(Peer p) {
         for(int i = 0; i < k; i++) {
             if(peers[i] == p) {

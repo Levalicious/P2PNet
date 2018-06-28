@@ -32,6 +32,7 @@ import static org.dilithium.util.Hex.getHex;
 
 public class ByteUtil {
     public static final byte[] ZERO_BYTE = {(byte)0x00};
+    public static final byte[] ONE_BYTE = {(byte)0x01};
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     public static final byte[] ZERO_BYTE_ARRAY = new byte[]{0};
 

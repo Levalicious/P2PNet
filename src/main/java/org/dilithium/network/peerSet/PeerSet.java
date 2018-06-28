@@ -31,6 +31,20 @@ public class PeerSet {
         }
     }
 
+    public boolean contains(Peer p) {
+        int bucketIndex = calcDist(nodeAddress, p.getAddress()).indexOf('1');
+
+        if(bucketIndex >= 0) {
+            if(buckets[bucketIndex] == null) {
+                return false;
+            }
+
+            return buckets[bucketIndex].contains(p);
+        } else {
+            return false;
+        }
+    }
+
     public boolean remove(Peer p) {
         int bucketIndex = calcDist(nodeAddress, p.getAddress()).indexOf('1');
 
