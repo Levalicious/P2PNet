@@ -21,7 +21,7 @@ public class Peer2Peer extends Thread {
 
     protected static HashMap<Integer, NetworkCommand> commands = new HashMap<>();
 
-    private ArrayList<PotentialPeer> waitList = new ArrayList<>();
+    public static ArrayList<PotentialPeer> waitList = new ArrayList<>();
 
 
     public Peer2Peer(int port, ECKey key, int k) {

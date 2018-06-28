@@ -3,6 +3,7 @@ package org.dilithium.util;
 import org.dilithium.crypto.ecdsa.ECKey;
 
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Objects;
@@ -10,6 +11,7 @@ import java.util.stream.IntStream;
 
 import static org.dilithium.crypto.Hash.keccak256;
 import static org.dilithium.util.ByteUtil.concat;
+import static org.dilithium.util.ByteUtil.partition;
 import static org.dilithium.util.ByteUtil.xor;
 
 public class NetUtil {
@@ -64,5 +66,77 @@ public class NetUtil {
 
     public static String calcDist(byte[] from, byte[] to) {
         return fromBitSet(fromByteArray(xor(from, to)));
+    }
+
+    public static ArrayList<byte[]> blobify(byte[] in) {
+        int chunkCount = (int)Math.ceil((double)in.length / (double)31);
+
+        ArrayList<byte[]> blob = new ArrayList<byte[]>();
+        int processed = 0;
+        for (int i = 0; i < chunkCount; i++) {
+            byte[] chunk = new byte[32];
+
+            for (int j = 0; j < 32; j++) {
+                if (j == 0) {
+                    if (in.length - 31 > i * 31) {
+                        chunk[j] = (byte)0x00;
+                    } else {
+                        byte count = (byte)((byte)(in.length - processed) & (byte)0xFF);
+                        chunk[j] = count;
+                    }
+                } else {
+                    if (processed < in.length) {
+                        chunk[j] = in[processed];
+                        processed++;
+                    } else {
+                        chunk[j] = (byte)0x00;
+                    }
+                }
+            }
+
+            blob.add(chunk);
+        }
+
+        return blob;
+    }
+
+    public static byte[] deblobify(ArrayList<byte[]> in) {
+        byte[] temp = new byte[0];
+
+        for (int i = 0; i < in.size(); i++) {
+            byte[] current = in.get(i);
+
+            if (current[0] == 0x00) {
+                temp = concat(temp, org.bouncycastle.util.Arrays.copyOfRange(current, 1, 32));
+            } else {
+                int dist = current[0];
+                temp = concat(temp, org.bouncycastle.util.Arrays.copyOfRange(current, 1, dist + 1));
+            }
+        }
+
+        return temp;
+    }
+
+    public static byte[] semiblobify(byte[] in) {
+        ArrayList<byte[]> temp = blobify(in);
+
+        byte[] tempBytes = new byte[0];
+
+        for (int i = 0; i < temp.size(); i++) {
+            tempBytes = concat(tempBytes, temp.get(i));
+        }
+
+        return tempBytes;
+    }
+
+    public static ArrayList<byte[]> semideblobify(byte[] in) {
+        byte[][] temp = partition(in, 32);
+        ArrayList<byte[]> tempList = new ArrayList<>();
+
+        for (int i = 0; i < temp.length; i++) {
+            tempList.add(temp[i]);
+        }
+
+        return tempList;
     }
 }

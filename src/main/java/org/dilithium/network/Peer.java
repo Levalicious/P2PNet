@@ -1,19 +1,16 @@
 package org.dilithium.network;
 
-import com.google.common.primitives.UnsignedInteger;
 import org.bouncycastle.util.encoders.Hex;
 import org.dilithium.network.messages.uMessage;
-import org.dilithium.util.BIUtil;
-import org.dilithium.util.ByteUtil;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.math.BigInteger;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.util.Arrays;
+import java.util.ArrayList;
 
-import static org.dilithium.util.ByteUtil.concat;
+import static org.dilithium.network.Peer2Peer.commands;
+import static org.dilithium.util.NetUtil.deblobify;
+import static org.dilithium.util.NetUtil.semiblobify;
 
 public class Peer extends Thread {
     private byte[] address;
@@ -53,15 +50,17 @@ public class Peer extends Thread {
             uMessage received = receive(in);
 
             if (received != null) {
-                if(Arrays.equals(this.address, received.getSender())) {
-                    send(serveType(received), serve(received));
-                }
+                send(serveType(received), serve(received));
             }
         }
     }
 
     public byte[] serve(uMessage in) {
-        return Peer2Peer.commands.get(in.getMessageType()).handle(in);
+        if (commands.containsKey(in.getMessageType())) {
+            return commands.get(in.getMessageType()).handle(in);
+        } else {
+            return null;
+        }
     }
 
     public int serveType(uMessage in) {
@@ -71,25 +70,25 @@ public class Peer extends Thread {
 
     public uMessage receive(DataInputStream in) {
         try {
-            byte[] lengthBytes = new byte[4];
+            byte[] chunk;
 
-            int count = in.read(lengthBytes);
+            ArrayList<byte[]> blob = new ArrayList<>();
 
-            if(count != 4) {
-                throw new RuntimeException("Reading in sucks");
-            } else {
-                UnsignedInteger length = UnsignedInteger.valueOf(Hex.toHexString(ByteUtil.stripLeadingZeroes(lengthBytes)), 16);
+            int count;
+            do {
+                chunk = new byte[32];
+                count = in.read(chunk);
 
-                byte[] data = new byte[length.intValue()];
-
-                count = in.read(data);
-
-                if(count != data.length) {
-                    throw new RuntimeException("Reading in sucks");
-                } else {
-                    return new uMessage(data);
+                if (count != 32) {
+                    return null;
                 }
-            }
+
+                blob.add(chunk);
+            } while (chunk[0] == 0);
+
+            System.out.println(Hex.toHexString(deblobify(blob)));
+
+            return new uMessage(deblobify(blob));
         } catch (Exception e) {
             return null;
         }
@@ -100,27 +99,11 @@ public class Peer extends Thread {
             if (data != null) {
                 uMessage u = new uMessage(i, data, Peer2Peer.key.getPrivKeyBytes());
 
-                byte[] toSend = u.getEncoded();
+                byte[] message = u.getEncoded();
 
-                if(toSend.length > Integer.MAX_VALUE || toSend.length < 0) {
-                    System.out.println("Packet size is drunk.");
-                    throw new RuntimeException("Fuck.");
-                }
+                System.out.println(Hex.toHexString(message));
 
-                UnsignedInteger length = UnsignedInteger.valueOf(toSend.length);
-
-                byte[] lengthBits = Hex.decode(length.toString(16));
-
-                if (lengthBits.length > 4) {
-                    System.out.println("Packet size is outside of safely drunk parameters.");
-                    throw new RuntimeException("Fuck.");
-                } else {
-                    while (lengthBits.length < 4) {
-                        lengthBits = concat(ByteUtil.ZERO_BYTE, lengthBits);
-                    }
-                }
-
-                toSend = concat(lengthBits, toSend);
+                byte[] toSend = semiblobify(message);
 
                 out.write(toSend.length);
                 out.write(toSend);
