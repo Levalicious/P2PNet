@@ -149,9 +149,6 @@ public class Peer2Peer extends Thread {
 
             /* Clear bloom filter */
             lastCleared = System.currentTimeMillis();
-            System.out.println("Filter retargetted to " + expectedMessages + " expected messages");
-            System.out.println("In this time, the filter received " + itemsInserted.intValue() + " items");
-            loopHandler = null;
             loopHandler = BloomFilter.create(Funnels.byteArrayFunnel(), expectedMessages, ((double)1 / (double) expectedMessages));
             itemsInserted.set(0);
         }
