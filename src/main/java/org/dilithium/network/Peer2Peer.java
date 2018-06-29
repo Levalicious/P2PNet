@@ -1,20 +1,25 @@
 package org.dilithium.network;
 
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.network.commands.NetworkCommand;
 import org.dilithium.network.commands.TextCommand;
 import org.dilithium.network.peerSet.PeerSet;
 
-import java.net.*;
-import java.util.Vector;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.HashMap;
+import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.dilithium.util.ByteUtil.ZERO_BYTE;
 
 public class Peer2Peer extends Thread {
-    private int port;
-    private boolean running;
-    private boolean initialized;
+    private static int port;
+    private static boolean running;
+    private static boolean initialized;
 
     private static ServerSocket server;
     public static PeerSet peers;
@@ -22,6 +27,14 @@ public class Peer2Peer extends Thread {
     protected static ECKey key;
 
     protected static HashMap<Integer, NetworkCommand> commands = new HashMap<>();
+
+    /* How often the bloom filter retargets & resets in ms */
+    private static final long retargetTime = 1800000;
+
+    protected static int expectedMessages = 1000;
+    protected static BloomFilter<byte[]> loopHandler = BloomFilter.create(Funnels.byteArrayFunnel(), expectedMessages, 0.0001);
+    protected static AtomicInteger itemsInserted;
+    protected static long lastCleared;
 
     public static Vector<Peer> waitList = new Vector<>();
 
@@ -32,6 +45,7 @@ public class Peer2Peer extends Thread {
             this.peers = new PeerSet(key.getAddress(), k);
             this.key = key;
 
+            initializeBloom();
             initializeCommands();
 
             server = new ServerSocket(this.port);
@@ -42,7 +56,20 @@ public class Peer2Peer extends Thread {
         }
     }
 
-    public void connect(String s, int port) {
+    private static void initializeBloom() {
+        itemsInserted = new AtomicInteger(0);
+        lastCleared = System.currentTimeMillis();
+        (new Thread() {
+            @Override
+            public void run() {
+                while (!Peer2Peer.interrupted()) {
+                    handleFilter();
+                }
+            }
+        }).start();
+    }
+
+    public static void connect(String s, int port) {
         try {
             Socket sock = new Socket();
             System.out.println("Socket created");
@@ -54,18 +81,18 @@ public class Peer2Peer extends Thread {
             p.start();
             System.out.println("Peer Started");
 
-            this.waitList.add(p);
+            waitList.add(p);
             System.out.println("Peer Added to Waitlist");
         } catch (Exception e) {
             System.out.println("Connection failed.");
         }
     }
 
-    private void initializeCommands() {
+    private static void initializeCommands() {
         commands.put(0xF0, new TextCommand());
     }
 
-    public void broadcast(int n, byte[] in) {
+    public static void broadcast(int n, byte[] in) {
         peers.broadcast(n, in);
     }
 
@@ -74,7 +101,6 @@ public class Peer2Peer extends Thread {
         running = true;
 
         while (running) {
-
             try {
                 Socket s = server.accept();
 
@@ -99,7 +125,39 @@ public class Peer2Peer extends Thread {
         }
     }
 
-    public String getPeers() {
+    private static void handleFilter() {
+        /* If half an hour has passed since the last retarget & clear */
+        if ((System.currentTimeMillis() - lastCleared) >= retargetTime) {
+            /* Perform filter size retargetting */
+            if (itemsInserted.intValue() >= ((expectedMessages / 4) * 3)) {
+                if (itemsInserted.intValue() >= expectedMessages) {
+                    /* If the filter fully overloads, double size
+                     * For panic moments, network under high stress etc*/
+                    int stressLevel = (int)Math.ceil((double)itemsInserted.intValue() / (double)expectedMessages);
+                    if (stressLevel > 1)
+                    expectedMessages = expectedMessages * stressLevel;
+                } else {
+                    /* If the filter went over 75% capacity, boost size by 5% */
+                    expectedMessages = (int)Math.ceil((double)expectedMessages * 1.05);
+                }
+            } else if (itemsInserted.intValue() <= ((expectedMessages / 4) * 2)) {
+                /* IF the filter was below 50% capacity, decrease size by 5% */
+                expectedMessages = (int)Math.floor((double)expectedMessages * 0.95);
+            }
+
+            if (expectedMessages < 100) expectedMessages = 100;
+
+            /* Clear bloom filter */
+            lastCleared = System.currentTimeMillis();
+            System.out.println("Filter retargetted to " + expectedMessages + " expected messages");
+            System.out.println("In this time, the filter received " + itemsInserted.intValue() + " items");
+            loopHandler = null;
+            loopHandler = BloomFilter.create(Funnels.byteArrayFunnel(), expectedMessages, ((double)1 / (double) expectedMessages));
+            itemsInserted.set(0);
+        }
+    }
+
+    public static String getPeers() {
         return peers.toString();
     }
 }

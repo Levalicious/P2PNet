@@ -3,7 +3,6 @@ package org.dilithium.network.messages;
 import org.bouncycastle.util.BigIntegers;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.util.ByteUtil;
-import org.dilithium.util.Hex;
 import org.dilithium.util.serialization.RLP;
 import org.dilithium.util.serialization.RLPElement;
 import org.dilithium.util.serialization.RLPItem;
@@ -14,7 +13,6 @@ import java.math.BigInteger;
 import static com.cedarsoftware.util.ArrayUtilities.isEmpty;
 import static org.dilithium.crypto.Hash.keccak256;
 import static org.dilithium.util.ByteUtil.EMPTY_BYTE_ARRAY;
-import static org.dilithium.util.ByteUtil.concat;
 
 public class uMessage {
     private static final int CHAIN_ID_INC = 35;
@@ -35,6 +33,10 @@ public class uMessage {
     /* An identifier as to what type of
      * message this packet contains. */
     private int messageType;
+
+    /* To prevent the same message being
+     * sent twice from being ignored */
+    private byte magicByte;
 
     /* The payload of this packet */
     private byte[] payload;
@@ -62,7 +64,9 @@ public class uMessage {
     }
 
     /* Construct new packet */
-    public uMessage( int messageType, byte[] payload, byte[] privkey) {
+    public uMessage(byte magicByte, int messageType, byte[] payload, byte[] privkey) {
+        this.magicByte = magicByte;
+
         this.messageType = messageType;
         this.payload = payload;
 
@@ -81,16 +85,17 @@ public class uMessage {
             RLPList decodedMessageList = RLP.decode2(rlpEncoded);
             RLPList packet = (RLPList) decodedMessageList.get(0);
 
-            if (packet.size() > 5) throw new RuntimeException("Too many RLP elements");
+            if (packet.size() > 6) throw new RuntimeException("Too many RLP elements");
             for (RLPElement rlpElement : packet) {
                 if(!(rlpElement instanceof RLPItem)) throw new RuntimeException("uMessage RLP elements shouldn't be lists");
             }
 
-            this.messageType = ByteUtil.byteArrayToInt(packet.get(0).getRLPData());
-            this.payload = packet.get(1).getRLPData();
-            this.r = packet.get(2).getRLPData();
-            this.s = packet.get(3).getRLPData();
-            byte[] vData = packet.get(4).getRLPData();
+            this.magicByte = packet.get(0).getRLPData()[0];
+            this.messageType = ByteUtil.byteArrayToInt(packet.get(1).getRLPData());
+            this.payload = packet.get(2).getRLPData();
+            this.r = packet.get(3).getRLPData();
+            this.s = packet.get(4).getRLPData();
+            byte[] vData = packet.get(5).getRLPData();
             BigInteger v = ByteUtil.bytesToBigInteger(vData);
             this.v = getRealV(v);
             this.parsed = true;
@@ -156,13 +161,18 @@ public class uMessage {
     public byte[] getEncodedRaw() {
         rlpParse();
         if(rlpRaw != null) return rlpRaw;
+
+        byte[] magic = new byte[1];
+        magic[0] = this.magicByte;
+
+        byte[] magicbyte = RLP.encodeElement(magic);
         byte[] messageType = RLP.encodeInt(this.messageType);
         byte[] payload = RLP.encodeElement(this.payload);
         byte[] r = RLP.encodeElement(EMPTY_BYTE_ARRAY);
         byte[] s = RLP.encodeElement(EMPTY_BYTE_ARRAY);
         byte[] v = RLP.encodeInt(chainId);
 
-        rlpRaw = RLP.encodeList(messageType, payload, r, s, v);
+        rlpRaw = RLP.encodeList(magicbyte, messageType, payload, r, s, v);
 
         return rlpRaw;
     }
@@ -170,6 +180,10 @@ public class uMessage {
     public byte[] getEncoded() {
         if (rlpEncoded != null) return rlpEncoded;
 
+        byte[] magic = new byte[1];
+        magic[0] = this.magicByte;
+
+        byte[] magicbyte = RLP.encodeElement(magic);
         byte[] messageType = RLP.encodeInt(this.messageType);
         byte[] payload = RLP.encodeElement(this.payload);
         byte[] r = RLP.encodeElement(this.r);
@@ -178,7 +192,7 @@ public class uMessage {
         encodeV += chainId * 2 + CHAIN_ID_INC;
         byte[] v = RLP.encodeInt(encodeV);
 
-        this.rlpEncoded = RLP.encodeList(messageType, payload, r, s, v);
+        this.rlpEncoded = RLP.encodeList(magicbyte, messageType, payload, r, s, v);
 
         this.hash = this.getHash();
 

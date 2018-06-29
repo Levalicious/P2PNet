@@ -1,8 +1,5 @@
 package org.dilithium.crypto.ecdsa;
 
-import org.bouncycastle.crypto.signers.DSAKCalculator;
-import org.bouncycastle.math.ec.custom.djb.Curve25519;
-import org.dilithium.crypto.ecdsa.jce.*;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.DLSequence;
@@ -27,6 +24,7 @@ import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.BigIntegers;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
+import org.dilithium.crypto.ecdsa.jce.*;
 import org.dilithium.resources.Constants;
 import org.dilithium.util.ByteUtil;
 
@@ -42,13 +40,9 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
-import static org.dilithium.crypto.Hash.keccak256;
 import static org.dilithium.crypto.Hash.keccak256Omit12;
-import static org.dilithium.resources.Constants.MagicBytesOne;
-import static org.dilithium.resources.Constants.MagicBytesTwo;
 import static org.dilithium.util.BIUtil.isLessThan;
 import static org.dilithium.util.ByteUtil.bigIntegerToBytes;
-import static org.dilithium.util.ByteUtil.concat;
 
 public class ECKey implements Serializable {
 

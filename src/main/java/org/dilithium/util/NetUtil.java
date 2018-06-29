@@ -1,18 +1,11 @@
 package org.dilithium.util;
 
-import org.dilithium.crypto.ecdsa.ECKey;
-
-import java.security.SignatureException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Objects;
 import java.util.stream.IntStream;
 
-import static org.dilithium.crypto.Hash.keccak256;
-import static org.dilithium.util.ByteUtil.concat;
-import static org.dilithium.util.ByteUtil.partition;
-import static org.dilithium.util.ByteUtil.xor;
+import static org.dilithium.util.ByteUtil.*;
 
 public class NetUtil {
     private static int targetedPacketDataSize = 344;

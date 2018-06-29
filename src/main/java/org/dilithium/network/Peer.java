@@ -6,12 +6,13 @@ import org.dilithium.util.Tuple;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.net.ServerSocket;
+import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Arrays;
 
 import static org.dilithium.network.Peer2Peer.commands;
+import static org.dilithium.network.Peer2Peer.loopHandler;
 import static org.dilithium.network.Peer2Peer.waitList;
 import static org.dilithium.util.ByteUtil.ONE_BYTE;
 import static org.dilithium.util.ByteUtil.ZERO_BYTE;
@@ -26,6 +27,8 @@ public class Peer extends Thread {
     private boolean running;
     private boolean initialized;
     private long firstSeen;
+
+    private byte magicbyte = 0x00;
 
     public Peer(Socket socket) {
         this(null, socket);
@@ -160,9 +163,14 @@ public class Peer extends Thread {
                 blob.add(chunk);
             } while (chunk[0] == 0);
 
-            System.out.println("Received: " + new uMessage(deblobify(blob)).getMessageType() + " : " + Hex.toHexString(deblobify(blob)));
-
-            return new uMessage(deblobify(blob));
+            byte[] data = deblobify(blob);
+            if (Peer2Peer.loopHandler.mightContain(data)) {
+                return null;
+            } else {
+                Peer2Peer.loopHandler.put(data);
+                Peer2Peer.itemsInserted.getAndIncrement();
+                return new uMessage(data);
+            }
         } catch (Exception e) {
             return null;
         }
@@ -183,11 +191,10 @@ public class Peer extends Thread {
             }
 
             if (data != null && i != -1) {
-                uMessage u = new uMessage(i, data, Peer2Peer.key.getPrivKeyBytes());
+                magicbyte += 0x01;
+                uMessage u = new uMessage(magicbyte, i, data, Peer2Peer.key.getPrivKeyBytes());
 
                 byte[] message = u.getEncoded();
-
-                System.out.println("Sending: " + Hex.toHexString(message));
 
                 byte[] toSend = semiblobify(message);
 
@@ -195,8 +202,11 @@ public class Peer extends Thread {
                 out.write(toSend);
                 out.flush();
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             this.running = false;
+            Peer2Peer.waitList.remove(this);
+            Peer2Peer.peers.remove(this);
+            this.interrupt();
         }
     }
 

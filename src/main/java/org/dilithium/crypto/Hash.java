@@ -1,11 +1,11 @@
 package org.dilithium.crypto;
 
+import org.bouncycastle.jcajce.provider.digest.Blake2b;
+import org.bouncycastle.jcajce.provider.digest.Skein;
 import org.dilithium.crypto.groestl.Groestl256;
 import org.dilithium.crypto.groestl.Groestl512;
 import org.dilithium.crypto.keccak.Keccak256;
 import org.dilithium.crypto.keccak.Keccak512;
-import org.bouncycastle.jcajce.provider.digest.Blake2b;
-import org.bouncycastle.jcajce.provider.digest.Skein;
 
 import java.security.MessageDigest;
 

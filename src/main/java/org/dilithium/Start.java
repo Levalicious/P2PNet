@@ -1,20 +1,10 @@
 package org.dilithium;
 
-import afu.org.checkerframework.checker.oigj.qual.O;
-import com.google.common.primitives.UnsignedInteger;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.KeyFactorySpi;
-import org.bouncycastle.pqc.math.linearalgebra.ByteUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.dilithium.crypto.ecdsa.ECKey;
-import org.dilithium.network.Peer;
 import org.dilithium.network.Peer2Peer;
-import org.dilithium.network.messages.uMessage;
-import org.dilithium.util.ByteUtil;
 
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.Arrays;
+import java.security.SecureRandom;
 import java.util.Scanner;
 
 public class Start {
@@ -22,7 +12,7 @@ public class Start {
         try {
             ECKey key = new ECKey();
             System.out.println(Hex.toHexString(key.getAddress()));
-            Peer2Peer net = new Peer2Peer(40424, key, 6);
+            Peer2Peer net = new Peer2Peer(60100, key, 6);
             net.start();
 
             Scanner s = new Scanner(System.in);
@@ -60,6 +50,16 @@ public class Start {
                 } else if(choice == 5) {
                     System.out.println("Shutting down.");
                     running = false;
+                } else if(choice == 6) {
+                    System.out.print("Enter the number of messages to send: ");
+                    int count = s.nextInt();
+                    for (int i = 0; i < count; i++) {
+                        SecureRandom rand = SecureRandom.getInstance("SHA1PRNG");
+                        byte[] data = new byte[50];
+                        rand.nextBytes(data);
+                        net.broadcast(0xF4, data);
+                    }
+                    System.out.println("Sent!");
                 }
 
                 System.out.println();
