@@ -1114,6 +1114,52 @@ public class RLP {
         return data;
     }
 
+    public static byte[] encodeList(ArrayList<byte[]> elements) {
+
+        if (elements == null) {
+            return new byte[]{(byte) OFFSET_SHORT_LIST};
+        }
+
+        int totalLength = 0;
+        for (byte[] element1 : elements) {
+            totalLength += element1.length;
+        }
+
+        byte[] data;
+        int copyPos;
+        if (totalLength < SIZE_THRESHOLD) {
+
+            data = new byte[1 + totalLength];
+            data[0] = (byte) (OFFSET_SHORT_LIST + totalLength);
+            copyPos = 1;
+        } else {
+            // length of length = BX
+            // prefix = [BX, [length]]
+            int tmpLength = totalLength;
+            byte byteNum = 0;
+            while (tmpLength != 0) {
+                ++byteNum;
+                tmpLength = tmpLength >> 8;
+            }
+            tmpLength = totalLength;
+            byte[] lenBytes = new byte[byteNum];
+            for (int i = 0; i < byteNum; ++i) {
+                lenBytes[byteNum - 1 - i] = (byte) ((tmpLength >> (8 * i)) & 0xFF);
+            }
+            // first byte = F7 + bytes.length
+            data = new byte[1 + lenBytes.length + totalLength];
+            data[0] = (byte) (OFFSET_LONG_LIST + byteNum);
+            System.arraycopy(lenBytes, 0, data, 1, lenBytes.length);
+
+            copyPos = lenBytes.length + 1;
+        }
+        for (byte[] element : elements) {
+            System.arraycopy(element, 0, data, copyPos, element.length);
+            copyPos += element.length;
+        }
+        return data;
+    }
+
     /*
      *  Utility function to convert Objects into byte arrays
      */

@@ -2,6 +2,8 @@ package org.dilithium.network.peerSet;
 
 import org.dilithium.network.Peer;
 
+import java.util.ArrayList;
+
 public class Bucket {
     byte[] zero = {(byte)0x00};
     private Peer[] peers;
@@ -18,6 +20,14 @@ public class Bucket {
         for( int i = 0; i < k; i++) {
             if(peers[i] != null) {
                 peers[i].send(messagetype, message);
+            }
+        }
+    }
+
+    public void relay(int messagetype, byte[] target, byte[] message) {
+        for( int i = 0; i < k; i++) {
+            if(peers[i] != null) {
+                peers[i].send(messagetype, target, message);
             }
         }
     }
@@ -87,5 +97,54 @@ public class Bucket {
         }
 
         return s;
+    }
+
+    public ArrayList<byte[]> serialize() {
+        ArrayList<byte[]> peerlist = new ArrayList<>();
+
+        for (int i = 0; i < k; i++) {
+            if (peers[i] != null) {
+                peerlist.add(peers[i].getEncoded());
+            }
+        }
+
+        return peerlist;
+    }
+
+    protected Peer getRandom(int seed) {
+        Peer temp = null;
+
+        while (temp == null) {
+            int target = seed % k;
+            if (peers[target] != null) {
+                temp = peers[target];
+            } else {
+                seed++;
+            }
+        }
+
+        return temp;
+    }
+
+    protected boolean hasPeers() {
+        for (int i = 0; i < k; i++) {
+            if (peers[i] != null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected int getPeerCount() {
+        int peercount = 0;
+
+        for (int i = 0; i < k; i++) {
+            if (peers[i] != null) {
+                peercount++;
+            }
+        }
+
+        return peercount;
     }
 }

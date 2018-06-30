@@ -6,10 +6,12 @@ import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.network.commands.NetworkCommand;
 import org.dilithium.network.commands.TextCommand;
 import org.dilithium.network.peerSet.PeerSet;
+import org.dilithium.util.Tuple;
 
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,9 +19,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.dilithium.util.ByteUtil.ZERO_BYTE;
 
 public class Peer2Peer extends Thread {
-    private static int port;
+    protected static int port;
     private static boolean running;
     private static boolean initialized;
+
+    private static int sufficientPeerCount;
 
     private static ServerSocket server;
     public static PeerSet peers;
@@ -39,11 +43,13 @@ public class Peer2Peer extends Thread {
     public static Vector<Peer> waitList = new Vector<>();
 
 
-    public Peer2Peer(int port, ECKey key, int k) {
+    public Peer2Peer(int port, ECKey key, int k, int sufficientPeerCount) {
         try {
             this.port = port;
             this.peers = new PeerSet(key.getAddress(), k);
             this.key = key;
+
+            this.sufficientPeerCount = sufficientPeerCount;
 
             initializeBloom();
             initializeCommands();
@@ -67,6 +73,10 @@ public class Peer2Peer extends Thread {
                 }
             }
         }).start();
+    }
+
+    public static void connect(String s) {
+        connect(s, port);
     }
 
     public static void connect(String s, int port) {
@@ -96,6 +106,10 @@ public class Peer2Peer extends Thread {
         peers.broadcast(n, in);
     }
 
+    public static void relay(int n, byte[] target, byte[] in) {
+
+    }
+
     @Override
     public void run() {
         running = true;
@@ -107,17 +121,24 @@ public class Peer2Peer extends Thread {
                 if (s != null) {
                     Peer p = new Peer(s);
 
-                    p.start();
+                    if (p.isInitialized()) {
+                        p.start();
 
-                    waitList.add(p);
+                        waitList.add(p);
 
-                    p.send(2, ZERO_BYTE);
+                        p.send(0, ZERO_BYTE);
+                    }
 
                     for (int i = 0; i < waitList.size(); i++) {
                         if (waitList.get(i).toDelete()) {
                             waitList.remove(i).interrupt();
                         }
                     }
+                }
+
+                if (peers.getPeerCount() < sufficientPeerCount) {
+                    SecureRandom rand = SecureRandom.getInstance("SHA1PRNG");
+                    peers.getRandom(rand.nextInt(), rand.nextInt()).send(new Tuple(0x05, ZERO_BYTE));
                 }
             } catch (Exception e) {
                 throw new RuntimeException("The server has failed.", e);

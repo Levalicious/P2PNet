@@ -1,5 +1,6 @@
 package org.dilithium.network.messages;
 
+import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.BigIntegers;
 import org.dilithium.crypto.ecdsa.ECKey;
 import org.dilithium.util.ByteUtil;
@@ -9,12 +10,14 @@ import org.dilithium.util.serialization.RLPItem;
 import org.dilithium.util.serialization.RLPList;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 
 import static com.cedarsoftware.util.ArrayUtilities.isEmpty;
 import static org.dilithium.crypto.Hash.keccak256;
-import static org.dilithium.util.ByteUtil.EMPTY_BYTE_ARRAY;
+import static org.dilithium.util.ByteUtil.ZERO_BYTE;
+import static org.dilithium.util.ByteUtil.ZERO_BYTE;
 
-public class uMessage {
+public class Message {
     private static final int CHAIN_ID_INC = 35;
     private static final int LOWER_REAL_V = 27;
     private Integer chainId = 40;
@@ -38,6 +41,11 @@ public class uMessage {
      * sent twice from being ignored */
     private byte magicByte;
 
+    /* Set to an empty byte array when
+     * the message has no target, otherwise
+     * contains 20 byte address */
+    private byte[] target;
+
     /* The payload of this packet */
     private byte[] payload;
 
@@ -59,14 +67,15 @@ public class uMessage {
     private byte[] hash;
 
     /* Reconstruct packet from RLP encoding */
-    public uMessage(byte[] rlpEncoded) {
+    public Message(byte[] rlpEncoded) {
         this.rlpEncoded = rlpEncoded;
     }
 
     /* Construct new packet */
-    public uMessage(byte magicByte, int messageType, byte[] payload, byte[] privkey) {
+    public Message(byte magicByte, int messageType, byte[] payload, byte[] privkey) {
         this.magicByte = magicByte;
 
+        this.target = ZERO_BYTE;
         this.messageType = messageType;
         this.payload = payload;
 
@@ -77,7 +86,19 @@ public class uMessage {
         this.hash = getHash();
     }
 
-    /* TODO: Set up constructors to construct based on messageType - Completely ignore payload in certain cases */
+    public Message(byte magicByte, byte[] target, int messageType, byte[] payload, byte[] privkey) {
+        this.magicByte = magicByte;
+
+        this.target = target;
+        this.messageType = messageType;
+        this.payload = payload;
+
+        parsed = true;
+
+        this.sign(privkey);
+
+        this.hash = getHash();
+    }
 
     public synchronized void rlpParse() {
         if (parsed) return;
@@ -85,17 +106,18 @@ public class uMessage {
             RLPList decodedMessageList = RLP.decode2(rlpEncoded);
             RLPList packet = (RLPList) decodedMessageList.get(0);
 
-            if (packet.size() > 6) throw new RuntimeException("Too many RLP elements");
+            if (packet.size() > 7) throw new RuntimeException("Too many RLP elements");
             for (RLPElement rlpElement : packet) {
-                if(!(rlpElement instanceof RLPItem)) throw new RuntimeException("uMessage RLP elements shouldn't be lists");
+                if(!(rlpElement instanceof RLPItem)) throw new RuntimeException("Message RLP elements shouldn't be lists");
             }
 
             this.magicByte = packet.get(0).getRLPData()[0];
-            this.messageType = ByteUtil.byteArrayToInt(packet.get(1).getRLPData());
-            this.payload = packet.get(2).getRLPData();
-            this.r = packet.get(3).getRLPData();
-            this.s = packet.get(4).getRLPData();
-            byte[] vData = packet.get(5).getRLPData();
+            this.target = packet.get(1).getRLPData();
+            this.messageType = ByteUtil.byteArrayToInt(packet.get(2).getRLPData());
+            this.payload = packet.get(3).getRLPData();
+            this.r = packet.get(4).getRLPData();
+            this.s = packet.get(5).getRLPData();
+            byte[] vData = packet.get(6).getRLPData();
             BigInteger v = ByteUtil.bytesToBigInteger(vData);
             this.v = getRealV(v);
             this.parsed = true;
@@ -103,6 +125,16 @@ public class uMessage {
         } catch (Exception e) {
             throw new RuntimeException("Error on parsing RLP", e);
         }
+    }
+
+    public boolean hasTarget() {
+        rlpParse();
+        return (!Arrays.equals(target, ZERO_BYTE));
+    }
+
+    public byte[] getTarget() {
+        rlpParse();
+        return target;
     }
 
     public int getMessageType() {
@@ -120,15 +152,17 @@ public class uMessage {
         return ECKey.ECDSASignature.fromComponents(r,s,v);
     }
 
-    private void sign(byte[] privKeyBytes) {
-        this.sign(ECKey.fromPrivate(privKeyBytes));
-    }
+    public ECPoint getPubKey() {
+        rlpParse();
+        ECKey.ECDSASignature temp = ECKey.ECDSASignature.fromComponents(r, s, v);
 
-    private void sign(ECKey key) {
-        ECKey.ECDSASignature temp = key.sign(this.getRawHash());
-        this.r = BigIntegers.asUnsignedByteArray(temp.r);
-        this.s = BigIntegers.asUnsignedByteArray(temp.s);
-        this.v = temp.v;
+        try {
+            return ECKey.signatureToKey(this.getRawHash(), temp).getPubKeyPoint();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Sig recovery failed");
+            return null;
+        }
     }
 
     public byte[] getSender() {
@@ -142,6 +176,17 @@ public class uMessage {
             System.out.println("Sig recovery failed");
             return null;
         }
+    }
+
+    private void sign(byte[] privKeyBytes) {
+        this.sign(ECKey.fromPrivate(privKeyBytes));
+    }
+
+    private void sign(ECKey key) {
+        ECKey.ECDSASignature temp = key.sign(this.getRawHash());
+        this.r = BigIntegers.asUnsignedByteArray(temp.r);
+        this.s = BigIntegers.asUnsignedByteArray(temp.s);
+        this.v = temp.v;
     }
 
     public byte[] getRawHash() {
@@ -166,13 +211,14 @@ public class uMessage {
         magic[0] = this.magicByte;
 
         byte[] magicbyte = RLP.encodeElement(magic);
+        byte[] target = RLP.encodeElement(this.target);
         byte[] messageType = RLP.encodeInt(this.messageType);
         byte[] payload = RLP.encodeElement(this.payload);
-        byte[] r = RLP.encodeElement(EMPTY_BYTE_ARRAY);
-        byte[] s = RLP.encodeElement(EMPTY_BYTE_ARRAY);
+        byte[] r = RLP.encodeElement(ZERO_BYTE);
+        byte[] s = RLP.encodeElement(ZERO_BYTE);
         byte[] v = RLP.encodeInt(chainId);
 
-        rlpRaw = RLP.encodeList(magicbyte, messageType, payload, r, s, v);
+        rlpRaw = RLP.encodeList(magicbyte, target, messageType, payload, r, s, v);
 
         return rlpRaw;
     }
@@ -184,6 +230,7 @@ public class uMessage {
         magic[0] = this.magicByte;
 
         byte[] magicbyte = RLP.encodeElement(magic);
+        byte[] target = RLP.encodeElement(this.target);
         byte[] messageType = RLP.encodeInt(this.messageType);
         byte[] payload = RLP.encodeElement(this.payload);
         byte[] r = RLP.encodeElement(this.r);
@@ -192,7 +239,7 @@ public class uMessage {
         encodeV += chainId * 2 + CHAIN_ID_INC;
         byte[] v = RLP.encodeInt(encodeV);
 
-        this.rlpEncoded = RLP.encodeList(magicbyte, messageType, payload, r, s, v);
+        this.rlpEncoded = RLP.encodeList(magicbyte, target, messageType, payload, r, s, v);
 
         this.hash = this.getHash();
 

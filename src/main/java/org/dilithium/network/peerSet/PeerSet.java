@@ -1,19 +1,27 @@
 package org.dilithium.network.peerSet;
 
 import org.dilithium.network.Peer;
+import org.dilithium.util.serialization.RLP;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.stream.IntStream;
 
 import static org.bouncycastle.pqc.math.linearalgebra.ByteUtils.xor;
 
 public class PeerSet {
+    private byte[] rlpEncoded;
+    private boolean parsed;
+
+    private int peerCount;
+
     private int k;
     private Bucket[] buckets = new Bucket[256];
     public static byte[] nodeAddress;
 
     public PeerSet(byte[] nodeAddress, int k) {
         this.nodeAddress = nodeAddress;
+        peerCount = 0;
         this.k = k;
     }
 
@@ -25,7 +33,13 @@ public class PeerSet {
                 buckets[bucketIndex] = new Bucket(k, nodeAddress);
             }
 
-            return buckets[bucketIndex].add(p);
+            if (buckets[bucketIndex].add(p)) {
+                parsed = false;
+                peerCount++;
+                return true;
+            } else {
+                return false;
+            }
         } else {
             return false;
         }
@@ -53,7 +67,13 @@ public class PeerSet {
                 return false;
             }
 
-            return buckets[bucketIndex].remove(p);
+            if (buckets[bucketIndex].remove(p)) {
+                parsed = false;
+                peerCount--;
+                return true;
+            } else {
+                return false;
+            }
         } else {
             return false;
         }
@@ -65,6 +85,61 @@ public class PeerSet {
                 buckets[i].broadcast(messagetype, message);
             }
         }
+    }
+
+    public void relay(int messagetype, byte[] target, byte[] message) {
+
+        int bucketIndex = findClosest(target);
+
+        if (bucketIndex >= 0) {
+            buckets[bucketIndex].relay(messagetype, target, message);
+        }
+    }
+
+    private int findClosest(byte[] target) {
+        int targetBucket = calcDist(nodeAddress, target).indexOf('1');
+
+        if (targetBucket >= 0) {
+            if (buckets[targetBucket] != null && buckets[targetBucket].hasPeers()) {
+                return targetBucket;
+            }
+
+            for(int i = 1; i <= 128; i++) {
+                /* Identify the indices of the two closest buckets */
+                int high = targetBucket + i;
+                int low = targetBucket - i;
+
+                /* If the indices go out of the bounds of the array, set them at the boundary. */
+                if(low < 0) low = 0;
+                if(high > 255) high = 255;
+
+                /* Establish a peer count for each bucket */
+                int highCount = 0;
+                int lowCount = 0;
+
+                /* If the next closest bucket exists, grab the peercount from it */
+                if(buckets[high] != null) {
+                    highCount = buckets[high].getPeerCount();
+                }
+
+                /* If the next farthest bucket exists, grab the peercount from it */
+                if(buckets[low] != null) {
+                    lowCount = buckets[low].getPeerCount();
+                }
+
+                /* If at least one of the two buckets targeted has at least one peer */
+                if(highCount > 0 || lowCount > 0) {
+                    /* Identify the bucket containing the most peers and return that bucket */
+                    if(highCount > lowCount) {
+                        return high;
+                    } else {
+                        return low;
+                    }
+                }
+            }
+        }
+
+        return -1;
     }
 
     public static String calcDist(byte[] from, byte[] to) {
@@ -101,5 +176,41 @@ public class PeerSet {
         }
 
         return s;
+    }
+
+    public byte[] serialize() {
+        if (parsed) return  rlpEncoded;
+
+        ArrayList<byte[]> peerlist = new ArrayList<>();
+
+        for(int i = 0; i < 256; i++) {
+            if(buckets[i] != null) {
+                peerlist.addAll(buckets[i].serialize());
+            }
+        }
+
+        this.parsed = true;
+        this.rlpEncoded = RLP.encodeList();
+        return rlpEncoded;
+    }
+
+    public int getPeerCount() {
+        return peerCount;
+    }
+
+    public Peer getRandom(int seed, int seed2) {
+        Peer temp = null;
+
+        while (temp == null) {
+            int target = seed % k;
+
+            if (buckets[target].hasPeers()) {
+                return buckets[target].getRandom(seed2);
+            } else {
+                seed++;
+            }
+        }
+
+        return null;
     }
 }
