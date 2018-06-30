@@ -23,6 +23,8 @@ public class Peer2Peer extends Thread {
     private static boolean running;
     private static boolean initialized;
 
+    protected static SecureRandom rand;
+
     private static int sufficientPeerCount;
 
     private static ServerSocket server;
@@ -48,6 +50,8 @@ public class Peer2Peer extends Thread {
             this.port = port;
             this.peers = new PeerSet(key.getAddress(), k);
             this.key = key;
+
+            this.rand = SecureRandom.getInstance("SHA1PRNG");
 
             this.sufficientPeerCount = sufficientPeerCount;
 
@@ -93,6 +97,8 @@ public class Peer2Peer extends Thread {
 
             waitList.add(p);
             System.out.println("Peer Added to Waitlist");
+
+            p.send(0, ZERO_BYTE);
         } catch (Exception e) {
             System.out.println("Connection failed.");
         }
@@ -121,16 +127,26 @@ public class Peer2Peer extends Thread {
                 if (s != null) {
                     Peer p = new Peer(s);
 
-                    p.start();
+                    if (p.isInitialized()) {
+                        p.start();
 
-                    waitList.add(p);
+                        waitList.add(p);
 
-                    p.send(0, ZERO_BYTE);
+                        p.send(0, ZERO_BYTE);
 
-                    for (int i = 0; i < waitList.size(); i++) {
-                        if (waitList.get(i).toDelete()) {
-                            waitList.remove(i).interrupt();
+                        for (int i = 0; i < waitList.size(); i++) {
+                            if (waitList.get(i).toDelete()) {
+                                waitList.remove(i).interrupt();
+                            }
                         }
+                    }
+                }
+
+                if (peers.getPeerCount() < sufficientPeerCount) {
+                    Peer p = peers.getRandom(rand.nextInt(), rand.nextInt());
+
+                    if (p != null) {
+                        p.send(new Tuple(0x05, ZERO_BYTE));
                     }
                 }
             } catch (Exception e) {

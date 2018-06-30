@@ -33,14 +33,15 @@ public class Bucket {
     }
 
     public boolean add(Peer p) {
-        int toBeReplaced = checkNodes();
+        if (!contains(p)) {
+            int toBeReplaced = checkNodes();
 
-        if(!(toBeReplaced < 0)) {
-            peers[toBeReplaced] = p;
-            return true;
-        } else {
-            /* Could potentially make it prioritize closer nodes within
-             * this bucket with the following code */
+            if(!(toBeReplaced < 0)) {
+                peers[toBeReplaced] = p;
+                return true;
+            } else {
+                /* Could potentially make it prioritize closer nodes within
+                 * this bucket with the following code */
             /*
             for(int i = 0; i < k; i++) {
                 if(BIUtil.isLessThan(new BigInteger(concat(zero, xor(ref, n.getAddress()))), new BigInteger(concat(zero, xor(ref, nodes[i].getAddress()))))) {
@@ -49,8 +50,12 @@ public class Bucket {
                 }
             }
              */
-            return false;
+                return false;
+            }
+        } else {
+            return true;
         }
+
     }
 
     public boolean contains(Peer p) {
@@ -112,18 +117,15 @@ public class Bucket {
     }
 
     protected Peer getRandom(int seed) {
-        Peer temp = null;
+        int target = seed % k;
 
-        while (temp == null) {
-            int target = seed % k;
-            if (peers[target] != null) {
-                temp = peers[target];
-            } else {
-                seed++;
+        for (int i = 0; i < k; i++) {
+            if (peers[target + i] != null) {
+                return peers[target + i];
             }
         }
 
-        return temp;
+        return null;
     }
 
     protected boolean hasPeers() {

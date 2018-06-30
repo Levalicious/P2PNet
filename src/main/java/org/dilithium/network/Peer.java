@@ -96,6 +96,10 @@ public class Peer extends Thread {
         return initialized;
     }
 
+    public Socket getSocket() {
+        return socket;
+    }
+
     @Override
     public void run() {
         running = true;
@@ -411,7 +415,9 @@ public class Peer extends Thread {
         if (o instanceof  Peer) {
             if (((Peer)o).getAddress() != null) {
                 if (this.getAddress() != null) {
-                    return Arrays.equals(this.getAddress(),((Peer)o).getAddress());
+                    if (Arrays.equals(this.getAddress(),((Peer)o).getAddress()) && socket.getInetAddress().toString().equals(((Peer)o).getSocket().getInetAddress().toString())) {
+                        return true;
+                    }
                 }
             }
         }
