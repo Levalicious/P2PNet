@@ -9,3 +9,4 @@
 * ~~Optional : Implement whisper protocol (message routing without flooding)~~ Implemented
 * Optional : Implement alternate network topologies (standard mesh, hypercube, toroid)
 * ~~Optional : Encrypt traffic between peers by default.~~ Implemented. However, sender & receiver are known to peers who relayed the message.
+* Optional : Implement UPnP Support
