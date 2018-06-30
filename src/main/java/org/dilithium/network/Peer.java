@@ -229,7 +229,7 @@ public class Peer extends Thread {
 
 
         if (commands.containsKey(in.getMessageType())) {
-            commands.get(in.getMessageType()).handle(in);
+            return commands.get(in.getMessageType()).handle(in);
         }
 
         return null;
