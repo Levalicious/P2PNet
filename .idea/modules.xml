@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/NetTests.iml" filepath="$PROJECT_DIR$/NetTests.iml" />
+      <module fileurl="file://$PROJECT_DIR$/P2PNet.iml" filepath="$PROJECT_DIR$/P2PNet.iml" />
     </modules>
   </component>
 </project>
