@@ -142,9 +142,11 @@ public class Peer extends Thread {
     public Tuple<Integer, byte[]> serve(Message in) {
         /* Handling join request */
         if (in.getMessageType() == 0x00) {
+            System.out.println("Received join request from " + Hex.toHexString(this.address));
             /* If the buckets already contain this peer
              * respond with an affirmative */
             if (Peer2Peer.peers.contains(this)) {
+                System.out.println("Responding with yes");
                 return new Tuple(0x02, ZERO_BYTE);
             } else {
                 /* Else attempt to add this peer to the
@@ -153,6 +155,7 @@ public class Peer extends Thread {
                     /* If successful, remove this peer from
                      * the waitlist and respond with an
                      * affirmative */
+                    System.out.println("Responding with yes");
                     Peer2Peer.waitList.remove(this);
                     return new Tuple(0x02, ZERO_BYTE);
                 } else {
@@ -160,6 +163,7 @@ public class Peer extends Thread {
                      * that means the appropriate bucket is
                      * full. As such, remove this peer from
                      * the waitlist and return a negative. */
+                    System.out.println("Responding with no");
                     Peer2Peer.waitList.remove(this);
                     return new Tuple(0x03, ZERO_BYTE);
                 }
@@ -168,14 +172,18 @@ public class Peer extends Thread {
 
         /* Handling yes messages */
         if (in.getMessageType() == 0x02) {
+            System.out.println("Received yes");
             if (Arrays.equals(in.getPayload(), ZERO_BYTE)) {
                 if (Peer2Peer.peers.add(this)) {
                     Peer2Peer.waitList.remove(this);
+                    System.out.println("Responding with yes");
                     return new Tuple(0x02, ONE_BYTE);
                 } else {
                     if (!Peer2Peer.peers.contains(this)) {
+                        System.out.println("Responding with no");
                         return new Tuple(0x03, ZERO_BYTE);
                     } else {
+                        System.out.println("Responding with yes");
                         Peer2Peer.waitList.remove(this);
                         return new Tuple(0x02, ONE_BYTE);
                     }
@@ -185,6 +193,7 @@ public class Peer extends Thread {
 
         /* Handling no messages */
         if (in.getMessageType() == 0x03) {
+            System.out.println("Received no");
             Peer2Peer.waitList.remove(this);
             Peer2Peer.peers.remove(this);
             this.interrupt();
@@ -284,7 +293,9 @@ public class Peer extends Thread {
     }
 
     public void send(Tuple<Integer, byte[]> data) {
-        this.send(data.x, ZERO_BYTE, data.y);
+        if (data != null) {
+            this.send(data.x, ZERO_BYTE, data.y);
+        }
     }
 
     public void send(int messagetype, byte[] target, byte[] data) {
@@ -322,7 +333,8 @@ public class Peer extends Thread {
                 out.write(toSend);
                 out.flush();
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             this.running = false;
             Peer2Peer.waitList.remove(this);
             Peer2Peer.peers.remove(this);
@@ -392,5 +404,18 @@ public class Peer extends Thread {
         this.rlpEncoded = RLP.encodeList(address, pubkey, ip);
 
         return rlpEncoded;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof  Peer) {
+            if (((Peer)o).getAddress() != null) {
+                if (this.getAddress() != null) {
+                    return Arrays.equals(this.getAddress(),((Peer)o).getAddress());
+                }
+            }
+        }
+
+        return false;
     }
 }

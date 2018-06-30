@@ -19,9 +19,11 @@ import static org.dilithium.util.ByteUtil.ZERO_BYTE;
 public class Start {
     public static void main(String[] args) throws Exception {
         try {
+            int prt = 40424;
             ECKey key = new ECKey();
             System.out.println(Hex.toHexString(key.getAddress()));
-            Peer2Peer net = new Peer2Peer(40424, key, 6, 10);
+            System.out.println(prt);
+            Peer2Peer net = new Peer2Peer(prt, key, 6, 10);
             net.start();
 
             Scanner s = new Scanner(System.in);
@@ -29,7 +31,7 @@ public class Start {
             boolean running = true;
 
             System.out.println("System initialized.");
-            System.out.println("To sendTargetted a message, enter '1'.\n" +
+            System.out.println("To send a message, enter '1'.\n" +
                     "To connect to a peer, enter '2'. \n" +
                     "To list currently connected peers, enter '3'.\n" +
                     "To check how many peers are in the waitlist, enter '4'.\n" +
@@ -40,7 +42,7 @@ public class Start {
                 int choice = s.nextInt();
                 s.nextLine();
                 if(choice == 1) {
-                    System.out.print("Enter the message you'd like to sendTargetted: ");
+                    System.out.print("Enter the message you'd like to send: ");
                     String sending = s.nextLine();
                     net.broadcast(0xF0, sending.getBytes("UTF-8"));
                 } else if(choice == 2) {

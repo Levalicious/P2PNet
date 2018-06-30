@@ -121,24 +121,17 @@ public class Peer2Peer extends Thread {
                 if (s != null) {
                     Peer p = new Peer(s);
 
-                    if (p.isInitialized()) {
-                        p.start();
+                    p.start();
 
-                        waitList.add(p);
+                    waitList.add(p);
 
-                        p.send(0, ZERO_BYTE);
-                    }
+                    p.send(0, ZERO_BYTE);
 
                     for (int i = 0; i < waitList.size(); i++) {
                         if (waitList.get(i).toDelete()) {
                             waitList.remove(i).interrupt();
                         }
                     }
-                }
-
-                if (peers.getPeerCount() < sufficientPeerCount) {
-                    SecureRandom rand = SecureRandom.getInstance("SHA1PRNG");
-                    peers.getRandom(rand.nextInt(), rand.nextInt()).send(new Tuple(0x05, ZERO_BYTE));
                 }
             } catch (Exception e) {
                 throw new RuntimeException("The server has failed.", e);

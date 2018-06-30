@@ -201,13 +201,17 @@ public class PeerSet {
     public Peer getRandom(int seed, int seed2) {
         Peer temp = null;
 
-        while (temp == null) {
-            int target = seed % k;
+        if (peerCount > 1) {
+            while (temp == null) {
+                int target = seed % k;
 
-            if (buckets[target].hasPeers()) {
-                return buckets[target].getRandom(seed2);
-            } else {
-                seed++;
+                if (buckets[target] != null) {
+                    if (buckets[target].hasPeers()) {
+                        return buckets[target].getRandom(seed2);
+                    } else {
+                        seed++;
+                    }
+                }
             }
         }
 
