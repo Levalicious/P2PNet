@@ -10,7 +10,11 @@
 * Optional : Implement alternate network topologies (standard mesh, hypercube, toroid)
 * ~~Optional : Encrypt traffic between peers by default.~~ Implemented. However, sender & receiver are known to peers who relayed the message.
 * Optional : Implement UPnP Support
+* Implement more frequent peer checking - Removal of dead peers needs to be reliable.
+* Implement IP ban list to ignore messages from.
 
+## Usage: 
+Navigate to the directory this repo was saved in and run 'mvn install'. You can import the resulting jar file to your project and initialize a network using the methods described below.
 
 ## Commands:
 
@@ -48,3 +52,6 @@ The ECKey() class is packaged with the networking and creates a keypair for mess
 The k value is specific to Kademlia-style routing, which uses "buckets" instead of a large list of peers.
 The sufficientPeers value allows the network to periodically (every 15 minutes) check to make sure it has a certain number of peers. If it doesn't have enough to satisfy this number, it'll attempt to connect to more. Past the sufficientPeer value, network churn should allow for a stable increase in peercounts, but the sufficientPeer check acts as a helper to the bootstrap mechanism.
 
+
+## Credit
+This library is based off of the code of [Carrdinal](https://github.com/Carrdinal) with assistance from [Soul](https://github.com/soulblade249). Also, the cryptographic portion of the code is taken from EthereumJ.
