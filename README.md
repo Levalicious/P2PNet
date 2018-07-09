@@ -5,7 +5,7 @@ It's like libp2p, but not as good.
 * ~~Implement Peer trimming (Remove dead peers periodically)~~ Peers are automatically removed upon disconnect.
 * ~~Implement received message handling (Ignore previously seen messages)~~ Peer2Peer class contains a bloom filter which periodically retargets
 * ~~Implement message relaying~~ Handled inside NetworkCommands
-* Implement peerset saving (upon bootup attempt to connect to previously seen peers)
+* ~~Implement peerset saving (upon bootup attempt to connect to previously seen peers)~~ Implemented
 * ~~Implement random walk (bootstrap from connected nodes without forming cliques)~~  ~~Implemented~~ Removed.
 * ~~Optional : Implement whisper protocol (message routing without flooding)~~ Implemented
 * Optional : Implement alternate network topologies (standard mesh, hypercube, toroid)
