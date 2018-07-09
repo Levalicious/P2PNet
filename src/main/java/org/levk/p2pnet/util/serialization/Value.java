@@ -8,7 +8,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.levk.p2pnet.crypto.Hash.keccak256;
+import static org.levk.eccrypto.Hash.keccak256;
 
 /**
  * Class to encapsulate an object and provide utilities for conversion

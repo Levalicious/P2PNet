@@ -2,14 +2,20 @@ package org.levk.p2pnet.network;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
-import org.levk.p2pnet.crypto.ecdsa.ECKey;
+import org.levk.eccrypto.ecdsa.ECKey;
 import org.levk.p2pnet.network.commands.NetworkCommand;
 import org.levk.p2pnet.network.peerSet.PeerSet;
+import org.levk.p2pnet.util.serialization.RLP;
+import org.levk.p2pnet.util.serialization.RLPElement;
+import org.levk.p2pnet.util.serialization.RLPItem;
+import org.levk.p2pnet.util.serialization.RLPList;
 
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,6 +64,8 @@ public class Peer2Peer extends Thread {
             this.commands = messageHandlers;
 
             server = new ServerSocket(this.port);
+
+            readPeers();
 
             this.initialized = true;
         } catch (Exception e) {
@@ -170,5 +178,52 @@ public class Peer2Peer extends Thread {
 
     public static String getPeers() {
         return peers.toString();
+    }
+
+    private static void readPeers() {
+        File savedPeers = new File("peers.pdb");
+
+        if (savedPeers.isFile() && savedPeers.canRead()) {
+            try {
+                FileInputStream in = new FileInputStream(savedPeers);
+
+                try {
+                    byte[] savedPeersDat = in.readAllBytes();
+
+                    ArrayList<Peer> potentialList = new ArrayList<>();
+
+                    RLPList decodedMessageList = RLP.decode2(savedPeersDat);
+                    RLPList peerlist = (RLPList) decodedMessageList.get(0);
+
+                    for (RLPElement rlpElement : peerlist) {
+                        if (!(rlpElement instanceof RLPItem)) throw new RuntimeException("Peerlist RLP elements shouldn't be lists");
+                    }
+
+                    for (int i = 0; i < peerlist.size(); i++) {
+                        Peer2Peer.connect((new Peer(peerlist.get(i).getRLPData())).getSocket().getInetAddress().toString());
+                    }
+                } catch (IOException i) {
+                    i.printStackTrace();
+                    System.out.println("Failed to read data from file.");
+                }
+            } catch (FileNotFoundException f) {
+                f.printStackTrace();
+                System.out.println("Failed to find file.");
+            }
+        }
+    }
+
+    public static void writePeers() {
+        try {
+            File savedPeers = new File("peers.pdb");
+
+            FileOutputStream out = new FileOutputStream(savedPeers);
+
+            out.write(peers.serialize());
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Failed to write peers.");
+        }
     }
 }

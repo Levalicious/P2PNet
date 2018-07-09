@@ -2,7 +2,7 @@ package org.levk.p2pnet.network.messages;
 
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.BigIntegers;
-import org.levk.p2pnet.crypto.ecdsa.ECKey;
+import org.levk.eccrypto.ecdsa.ECKey;
 import org.levk.p2pnet.util.ByteUtil;
 import org.levk.p2pnet.util.serialization.RLP;
 import org.levk.p2pnet.util.serialization.RLPElement;
@@ -13,7 +13,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 import static com.cedarsoftware.util.ArrayUtilities.isEmpty;
-import static org.levk.p2pnet.crypto.Hash.keccak256;
+import static org.levk.eccrypto.Hash.keccak256;
 import static org.levk.p2pnet.util.ByteUtil.ZERO_BYTE;
 
 public class Message {

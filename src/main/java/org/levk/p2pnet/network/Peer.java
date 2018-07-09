@@ -2,8 +2,8 @@ package org.levk.p2pnet.network;
 
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.util.encoders.Hex;
-import org.levk.p2pnet.crypto.ecdsa.ECIESCoder;
-import org.levk.p2pnet.crypto.ecdsa.ECKey;
+import org.levk.eccrypto.ecdsa.ECIESCoder;
+import org.levk.eccrypto.ecdsa.ECKey;
 import org.levk.p2pnet.network.messages.Message;
 import org.levk.p2pnet.util.Tuple;
 import org.levk.p2pnet.util.serialization.RLP;
@@ -142,6 +142,26 @@ public class Peer extends Thread {
     }
 
     public Tuple<Integer, byte[]> serve(Message in) {
+        /* If the message is internal, handle it */
+        Tuple temp = serveInternal(in);
+
+        /* If the message is not internal, temp
+         * will be automatically null. */
+        if (temp != null) {
+            return temp;
+        }
+
+        if (commands.containsKey(in.getMessageType())) {
+            return commands.get(in.getMessageType()).handle(in);
+        }
+
+        return null;
+    }
+
+    private Tuple<Integer, byte[]> serveInternal(Message in) {
+        /* For responding to any internal messages that have no uses outside
+         * of the networking. */
+
         /* Handling join request */
         if (in.getMessageType() == 0x00) {
             /* If the buckets already contain this peer
@@ -156,6 +176,7 @@ public class Peer extends Thread {
                      * the waitlist and respond with an
                      * affirmative */
                     Peer2Peer.waitList.remove(this);
+                    Peer2Peer.writePeers();
                     return new Tuple(0x02, ZERO_BYTE);
                 } else {
                     /* If adding the peer is unsuccessful,
@@ -173,6 +194,7 @@ public class Peer extends Thread {
             if (Arrays.equals(in.getPayload(), ZERO_BYTE)) {
                 if (Peer2Peer.peers.add(this)) {
                     Peer2Peer.waitList.remove(this);
+                    Peer2Peer.writePeers();
                     return new Tuple(0x02, ONE_BYTE);
                 } else {
                     if (!Peer2Peer.peers.contains(this)) {
@@ -189,6 +211,7 @@ public class Peer extends Thread {
         if (in.getMessageType() == 0x03) {
             Peer2Peer.waitList.remove(this);
             Peer2Peer.peers.remove(this);
+            Peer2Peer.writePeers();
             this.interrupt();
         }
 
@@ -196,6 +219,7 @@ public class Peer extends Thread {
         if (in.getMessageType() == 0x01) {
             Peer2Peer.peers.remove(this);
             waitList.remove(this);
+            Peer2Peer.writePeers();
             this.interrupt();
         }
 
@@ -224,12 +248,7 @@ public class Peer extends Thread {
             }
         }
 
-
-
-        if (commands.containsKey(in.getMessageType())) {
-            return commands.get(in.getMessageType()).handle(in);
-        }
-
+        /* If not one of the internal message types, return null */
         return null;
     }
 
