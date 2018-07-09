@@ -1,4 +1,5 @@
-# NetTests
+# P2PNet
+It's like libp2p, but not as good.
 
 ## To Do:
 * ~~Implement Peer trimming (Remove dead peers periodically)~~ Peers are automatically removed upon disconnect.
